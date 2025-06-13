@@ -1,0 +1,16 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "factoryName": {
+        "value": "qa-ll-adf"
+      },
+      "AzureDataLakeStorage1_accountKey": {
+        "value": "3N/7yng7yu5v7iigxFnXTz4cHdDhh1QWCWrU3VkaNbABWs8MyZPDLvJSFKOlsdcqMisY+rQbu1OK+ASt+IZMZA=="  // or Key Vault reference
+      },
+      "AzureDataLakeStorage1_properties_typeProperties_url": {
+        "value": "https://udpstorageqa.dfs.core.windows.net/"
+      }
+    }
+  }
+  
