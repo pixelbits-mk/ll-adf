@@ -1,0 +1,65 @@
+name: Deploy ADF to QA
+
+on:
+  push:
+    branches:
+      - release/qa
+
+env:
+  ADF_NAME: qa-ll-adf
+  RESOURCE_GROUP: test
+  BUILD_VERSION: v1.0.${{ github.run_number }}
+  ARTIFACT_FOLDER: adf_artifacts
+  PUBLISH_BRANCH: infra_publish
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source (release/qa)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: release/qa
+
+    - name: Set up Git
+      run: |
+        git config user.name "github-actions"
+        git config user.email "actions@github.com"
+
+    - name: Fetch and checkout publish branch
+      run: |
+        git fetch origin $PUBLISH_BRANCH:$PUBLISH_BRANCH
+        git checkout $PUBLISH_BRANCH
+        git merge origin/release/qa --no-ff --no-edit
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Export ARM templates to ${{ env.ARTIFACT_FOLDER }}
+      run: |
+        az datafactory export-arm-template \
+          --factory-name $ADF_NAME \
+          --resource-group $RESOURCE_GROUP \
+          --output-folder $ARTIFACT_FOLDER \
+          --include-authoring-objects true \
+          --overwrite true
+
+    - name: Commit and tag ARM templates
+      run: |
+        git add $ARTIFACT_FOLDER
+        git commit -m "Exported ARM templates for $BUILD_VERSION"
+        git tag $BUILD_VERSION
+        git push origin $PUBLISH_BRANCH
+        git push origin $BUILD_VERSION
+
+    - name: Deploy ARM templates to QA
+      run: |
+        az deployment group create \
+          --resource-group $RESOURCE_GROUP \
+          --name deploy-adf-${{ github.run_number }} \
+          --template-file $ARTIFACT_FOLDER/ARMTemplateForFactory.json \
+          --parameters @$ARTIFACT_FOLDER/ARMTemplateParametersForFactory.json
