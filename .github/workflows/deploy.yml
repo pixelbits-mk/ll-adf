@@ -3,16 +3,16 @@ name: Export ADF ARM Templates
 on:
   push:
     branches:
-      - main  # or your default branch
-  workflow_dispatch:  # allow manual trigger
+      - main  # Trigger on push to main branch
+  workflow_dispatch:  # Allow manual trigger in GitHub UI
 
 jobs:
   export-adf-arm:
     runs-on: ubuntu-latest
 
     env:
-      DATA_FACTORY_NAME: ${{ secrets.ADF_NAME }}  # Set in GitHub secrets
-      SOURCE_FOLDER: src
+      DATA_FACTORY_NAME: ${{ secrets.ADF_NAME }}  # Define this in GitHub Secrets
+      SOURCE_FOLDER: .  # Root of repo contains ADF folders
       OUTPUT_FOLDER: adf_artifacts
 
     steps:
