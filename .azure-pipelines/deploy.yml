@@ -8,14 +8,14 @@ variables:
   artifactName: 'adf_artifacts'
   adfResourceGroup: 'test'
   adfName: 'qa-ll-adf'
-  adfPublishBranch: 'adf_publish'
+  adfPublishBranch: 'infra_publish'
 
 stages:
 - stage: TagAndPublish
   displayName: Tag and Publish Artifacts
   jobs:
   - job: TagAndPush
-    displayName: Tag source and publish to adf_publish
+    displayName: Tag source and publish to infra_publish
     pool:
       vmImage: 'ubuntu-latest'
     steps:
@@ -27,16 +27,30 @@ stages:
         git config user.name "Loadlink DevOps"
         git fetch origin
         git checkout $(adfPublishBranch)
-      displayName: Checkout adf_publish
+      displayName: Checkout infra_publish
 
     - script: |
         git merge origin/release/qa --no-ff --no-edit
         git tag v$(buildVersion)
         git push origin v$(buildVersion)
         git push origin HEAD:$(adfPublishBranch)
-      displayName: Merge and Tag
+      displayName: Merge release/qa and tag version
 
-    - publish: ./dev-ll-adf
+    - task: AzureCLI@2
+      displayName: Export ARM templates to adf_artifacts folder
+      inputs:
+        azureSubscription: 'AzureServiceConnection'  # Replace with your service connection
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az datafactory export-arm-template \
+            --factory-name $(adfName) \
+            --resource-group $(adfResourceGroup) \
+            --output-folder $(Build.SourcesDirectory)/$(artifactName) \
+            --include-authoring-objects true \
+            --overwrite true
+
+    - publish: $(Build.SourcesDirectory)/$(artifactName)
       artifact: $(artifactName)
 
 - stage: DeployToQA
@@ -48,17 +62,17 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
     steps:
-    - checkout: self
-      clean: true
+    - checkout: none
 
     - download: current
       artifact: $(artifactName)
 
     - task: AzureResourceManagerTemplateDeployment@3
+      displayName: Deploy ARM template to QA
       inputs:
         deploymentScope: 'Resource Group'
         azureResourceManagerConnection: 'AzureServiceConnection'  # Replace with your actual service connection name
-        subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'    # Optional if tied to service connection
+        subscriptionId: 'ab98b12f-042b-45fa-8c23-0286079a0117'    # Optional if tied to service connection
         action: 'Create Or Update Resource Group'
         resourceGroupName: '$(adfResourceGroup)'
         location: 'East US'
