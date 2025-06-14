@@ -1,0 +1,68 @@
+trigger:
+  branches:
+    include:
+      - release/qa
+
+variables:
+  buildVersion: '1.0.$(Build.BuildId)'
+  artifactName: 'adf_artifacts'
+  adfResourceGroup: 'test'
+  adfName: 'qa-ll-adf'
+  adfPublishBranch: 'adf_publish'
+
+stages:
+- stage: TagAndPublish
+  displayName: Tag and Publish Artifacts
+  jobs:
+  - job: TagAndPush
+    displayName: Tag source and publish to adf_publish
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+      persistCredentials: true
+
+    - script: |
+        git config user.email "devops@loadlink.ca"
+        git config user.name "Loadlink DevOps"
+        git fetch origin
+        git checkout $(adfPublishBranch)
+      displayName: Checkout adf_publish
+
+    - script: |
+        git merge origin/release/qa --no-ff --no-edit
+        git tag v$(buildVersion)
+        git push origin v$(buildVersion)
+        git push origin HEAD:$(adfPublishBranch)
+      displayName: Merge and Tag
+
+    - publish: ./dev-ll-adf
+      artifact: $(artifactName)
+
+- stage: DeployToQA
+  displayName: Deploy to QA
+  dependsOn: TagAndPublish
+  jobs:
+  - job: DeployADF
+    displayName: Deploy ARM to qa-ll-adf
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+      clean: true
+
+    - download: current
+      artifact: $(artifactName)
+
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        deploymentScope: 'Resource Group'
+        azureResourceManagerConnection: 'AzureServiceConnection'  # Replace with your actual service connection name
+        subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'    # Optional if tied to service connection
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: '$(adfResourceGroup)'
+        location: 'East US'
+        templateLocation: 'Linked artifact'
+        csmFile: '$(Pipeline.Workspace)/$(artifactName)/ARMTemplateForFactory.json'
+        csmParametersFile: '$(Pipeline.Workspace)/$(artifactName)/ARMTemplateParametersForFactory.json'
+        deploymentMode: 'Incremental'
