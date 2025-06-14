@@ -3,35 +3,43 @@ name: Export ADF ARM Templates
 on:
   push:
     branches:
-      - main
+      - main  # or your default branch
+  workflow_dispatch:  # allow manual trigger
 
 jobs:
   export-adf-arm:
     runs-on: ubuntu-latest
+
+    env:
+      DATA_FACTORY_NAME: ${{ secrets.ADF_NAME }}  # Set in GitHub secrets
+      SOURCE_FOLDER: src
+      OUTPUT_FOLDER: adf_artifacts
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Install ADF utilities
+      - name: Install ADF Utilities
         run: npm install -g @microsoft/azure-data-factory-utilities
 
-      - name: Validate ADF JSON
-        run: adf validate --rootFolder ./src
+      - name: Validate ADF source JSON
+        run: adf validate --rootFolder $SOURCE_FOLDER
 
       - name: Export ARM templates
         run: |
-          mkdir -p adf_artifacts
+          mkdir -p $OUTPUT_FOLDER
           adf publish \
-            --rootFolder ./src \
-            --outputFolder ./adf_artifacts \
-            --dataFactoryName ${{ secrets.ADF_NAME }}
+            --rootFolder $SOURCE_FOLDER \
+            --outputFolder $OUTPUT_FOLDER \
+            --dataFactoryName $DATA_FACTORY_NAME
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload ARM artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: adf-arm-templates
-          path: ./adf_artifacts
+          path: ${{ env.OUTPUT_FOLDER }}
