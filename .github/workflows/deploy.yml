@@ -39,6 +39,10 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Install Azure Data Factory extension
+      run: |
+        az extension add --name datafactory
+
     - name: Export ARM templates to ${{ env.ARTIFACT_FOLDER }}
       run: |
         az datafactory export-arm-template \
