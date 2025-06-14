@@ -6,7 +6,12 @@
         "value": "qa-ll-adf"
       },
       "AzureDataLakeStorage1_accountKey": {
-        "value": ""  // or Key Vault reference
+        "reference": {
+          "keyVault": {
+            "id": "/subscriptions/ab98b12f-042b-45fa-8c23-0286079a0117/resourceGroups/test/providers/Microsoft.KeyVault/vaults/ll-adf-kv"
+          },
+          "secretName": "udp-storage-account-key"
+        }      
       },
       "AzureDataLakeStorage1_properties_typeProperties_url": {
         "value": "https://udpstorageqa.dfs.core.windows.net/"
